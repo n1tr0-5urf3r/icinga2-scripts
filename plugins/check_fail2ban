@@ -1,0 +1,149 @@
+#!/bin/bash
+#################################################################
+# Written by Fabian Ihle, fabi@ihlecloud.de                     #
+# Created: 22.03.2020                                           #
+# github: https://github.com/n1tr0-5urf3r/icinga2-scripts       #
+#                                                               #
+# Displays information per jail                                 #
+# Performance data for total blocked IPs                        #
+# Shows which IP is banned until when                           #
+#################################################################
+
+# Helper message
+print_help() {
+        echo "
+                Usage:
+
+                        ./check_fail2ban -h Display this message
+                                         -w <warning level> defaults to 10
+                                         -c <crit level> defaults to 20
+                                         -t Time: Display until when IPs will be banned
+                                         -j <jaillist> i.e. comma separated string of jails, i.e. ssh,postfix
+                                            Only check those jails
+                Examples:
+                        ./check_fail2ban -t -w 5 -c 10 -j ssh,postfix
+                        ./check_fail2ban -t
+        "
+}
+
+print_error() {
+        echo -e "Error: $1\\n"
+        exit 3
+}
+
+# Get binaries
+FBIN=$(command -v fail2ban-client)
+SUDO=$(command -v sudo)
+if [ -z "$FBIN" ]; then
+        print_error "fail2ban-client not found"
+fi
+if [ -z "$SUDO" ]; then
+        print_error "$SUDO not found. Please install it"
+fi
+
+# Check $SUDO permissions
+VISUDO=$($SUDO -l -U nagios)
+if echo "$VISUDO" | grep -q "(root) NOPASSWD: /usr/bin/fail2ban-client status$" &&
+   echo "$VISUDO" | grep -q "(root) NOPASSWD: /usr/bin/fail2ban-client status \*$" &&
+   echo "$VISUDO" | grep -q "(root) NOPASSWD: /usr/bin/fail2ban-client get \* banip$" &&
+   echo "$VISUDO" | grep -q "(root) NOPASSWD: /usr/bin/fail2ban-client get \* banip --with-time$" &&
+   echo "$VISUDO" | grep -q "(root) NOPASSWD: /usr/bin/fail2ban-client get \* bantime$"; then
+                :
+else
+                print_error "Not all sudo permissions available! Please refer to documentation"
+fi
+
+
+# Parse Arguments
+while test -n "$1"; do
+    case "$1" in
+        -c)
+            CRIT=$2
+            shift
+            ;;
+        -h)
+            print_help
+            exit 3
+            ;;
+        -w)
+            WARN=$2
+            shift
+            ;;
+        -t)
+            TIME=true
+            ;;
+        -j)
+            MANUAL=true
+            JAILLIST=$2
+            shift
+            ;;
+        *)
+            print_help
+            print_error "Unknown argument: $1"
+            ;;
+    esac
+  shift
+done
+
+# Get List of Jails
+if [ ! "$MANUAL" = true ]; then
+        JAILLIST=$($SUDO "$FBIN" status |grep "Jail list" | sed 's/`- Jail list://g' | sed 's/ //g')
+fi
+
+# Parse jaillist
+IFS=',' read -ra JAILS <<< "$JAILLIST"
+for JAIL in "${JAILS[@]}"; do
+
+        if $SUDO "$FBIN" get $JAIL banip | grep -q "does not exist"; then
+                print_error "Jail \""$JAIL"\" not found"
+        fi
+        if [ "$TIME" = true ]; then
+                BANNED_IPS=$($SUDO "$FBIN" get $JAIL banip --with-time| sed 's/ .*= / banned till /g')
+        else
+                BANNED_IPS=$($SUDO "$FBIN" get $JAIL banip | sed 's/ /, /g')
+        fi
+        if [ -z "$BANNED_IPS" ]; then
+                BANNED_IPS="None"
+        else
+                BANNED_IPS=$(echo $BANNED_IPS | sed 's/$/, /g')
+        fi
+
+        # Get Amount of bans
+        BANS=0
+        BANS=$($SUDO fail2ban-client status $JAIL | grep -o "Currently banned:.*" | sed 's/Currently banned://g')
+        TOTALBANS=$((TOTALBANS+BANS))
+
+        # Get Bantime for jail
+        BANTIME=$($SUDO "$FBIN" get $JAIL bantime)
+
+        # Assemble Output
+        OUTPUT=$(echo "$OUTPUT"\\nJail: $JAIL\\nBan Time: $BANTIME\\nCurrently Banned: $BANS\\nBanned IPs: $BANNED_IPS\\n)
+done
+
+# Set default values
+if [ -z "$CRIT" ]; then
+        CRIT=20
+fi
+
+if [ -z "$WARN" ]; then
+        WARN=10
+fi
+
+if [ $WARN -ge $CRIT ]; then
+        print_error "Error: CRIT must be greater than WARN"
+fi
+
+# Append additional info
+OUTPUT=$(echo -e "$OUTPUT\\nTotal banned: "$TOTALBANS" IPs|banned_IP=${TOTALBANS};${WARN};${CRIT}")
+
+# States
+if [ "$TOTALBANS" -ge ${WARN} ] && [ "$TOTALBANS" -lt ${CRIT} ]; then
+        echo "WARNING:$OUTPUT"
+        exit 1
+elif [ "$TOTALBANS" -ge ${WARN} ];then
+        echo "CRITICAL:$OUTPUT"
+        exit 2
+else
+        echo "OK:$OUTPUT"
+        exit 0
+fi
