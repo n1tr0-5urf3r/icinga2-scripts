@@ -38,7 +38,7 @@ if [ -z "$FBIN" ]; then
         print_error "fail2ban-client not found"
 fi
 if [ -z "$SUDO" ]; then
-        print_error "$SUDO not found. Please install it"
+        print_error "sudo not found. Please install it"
 fi
 
 # Check $SUDO permissions
