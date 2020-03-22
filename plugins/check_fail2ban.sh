@@ -1,10 +1,15 @@
 #!/bin/bash
 #########################################################
 # Written by Andor Westphal andor.westphal@gmail.com    #
+# Modified by Fabian Ihle fabi@ihlecloud.de             #
 # Created: 2013-02-22   (version 1.0)                   #
 # Modified:2013-03-12   (version 1.1)                   #
 #       -fix wrong count for output                     #
 #       -implement status check                         #
+# Modified 2020-03-22   (version 1.2)                   #
+#       - fix wrong process status (OldBlogger)         #
+#       - Add verbose IP output (Fabian Ihle)           #
+#       - Fix jail_list (svamberg)                      #
 #                                                       #
 #checks the count of active jails                       #
 #checks for banned IP's                                 #
@@ -15,8 +20,8 @@ STATUS_OK="0"
 STATUS_WARNING="1"
 STATUS_CRITICAL="2"
 STATUS_UNKNOWN="3"
-ps_state=$(ps aux |grep "fail2ban.sock" |grep -v grep| wc -l)
-PROGPATH=`dirname $0`
+ps_state=$(ss -aux |grep "fail2ban.sock" |grep -v grep| wc -l)
+PROGPATH=$(dirname $0)
 fail2ban_client=$(which fail2ban-client)
 jail_count=$($fail2ban_client status|grep "Number" |cut -f 2)
 
@@ -33,6 +38,7 @@ Usage:
                 -p </path/to/conffile>
                 -w <your warnlevel>
                 -c <your critlevel>
+                -v Verbose Output: Display banned IPs and protocols
 
         example :
   $PROGPATH/check_fail2ban -l /var/log/fail2ban.log -p /etc/fail2ban/jail.conf -w 10 -c 20
@@ -82,6 +88,9 @@ while test -n "$1"; do
             warn=$2
             shift
             ;;
+        -v)
+            verbose=true
+            ;;
         *)
             echo "Unknown argument: $1"
             print_usage
@@ -98,7 +107,7 @@ if [ -z ${crit} ] ||  [ -z ${lpath} ] || [ -z ${cpath} ] || [ -z ${warn} ]; then
         exit $STATUS_UNKNOWN
 fi
 
-ban=$(grep "Ban " ${lpath}|grep -v Fail| awk -F[\ \:] '{print $10,$8}')
+ban=$(grep "Ban " ${lpath} | grep -v Fail | sed -E 's/[ ]{2,}/ /g' | awk -F[\ \:] '{print $11, $9}')
 bcount=$(echo "$ban"|grep -v ^\#  | grep -v ^$|wc -l)
 
 
@@ -113,22 +122,24 @@ fi
 
 
 ban_time=$(cat ${cpath} |grep "bantime" |cut -d " "  -f4)
-#ban_time=$(echo The bantime are ${ban_time} seconds)
 
 long_out=$(cat /var/log/fail2ban.log |grep "Ban "|cut -d " " -f 7,5,2|sed  -e 's/$/\\n/g'|grep -v Fail)
 
-
-OUTPUT=$(echo "${jail_count} active jails --- ${State}: ${bcount} banned IP(s) \n The bantime are ${ban_time} seconds \n "$long_out" |banned_IP=${bcount};${warn};${crit};;")
+if [ "$verbose" = true ]; then
+        ban=$(echo "$ban" | sed 's/]/]\\n/g')
+        OUTPUT=$(echo "${jail_count} active jails --- ${State}: ${bcount} banned IP(s) \n The bantime are ${ban_time} seconds \n "$long_out" \n Banned IPs: \n $ban |banned_IP=${bcount};${warn};${crit};;")
+else
+        OUTPUT=$(echo "${jail_count} active jails --- ${State}: ${bcount} banned IP(s) \n The bantime are ${ban_time} seconds \n "$long_out" |banned_IP=${bcount};${warn};${crit};;")
+fi
 
 echo $OUTPUT
 
-if [ ${State} == "Warning" ];then 
+if [ ${State} == "Warning" ];then
         exit ${STATUS_WARNING}
-elif [ ${State} == "Critical" ];then 
+elif [ ${State} == "Critical" ];then
         exit ${STATUS_CRITICAL}
-elif [ ${State} == "Unknown" ];then 
+elif [ ${State} == "Unknown" ];then
         exit ${STATUS_UNKNOWN}
 else
         exit ${STATUS_OK}
 fi
-
