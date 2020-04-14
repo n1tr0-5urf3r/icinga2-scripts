@@ -21,7 +21,7 @@ This plugin requires fail2ban and sudo installed. Also several commands must be 
                              -t Time: Display until when IPs will be banned
                              -j <jaillist> i.e. comma separated string of jails, i.e. ssh,postfix
                                 Only check those jails
-###Examples
+### Examples
             ./check_fail2ban -t -w 5 -c 10 -j ssh,postfix
             ./check_fail2ban -t
 
