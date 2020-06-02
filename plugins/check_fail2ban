@@ -153,6 +153,6 @@ elif [ "$TOTALBANS" -ge ${CRIT} ];then
         echo "CRITICAL:$OUTPUT"
         exit 2
 else
-        echo "OK:$OUTPUT"
+        echo "$OUTPUT"
         exit 0
 fi
