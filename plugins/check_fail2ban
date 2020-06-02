@@ -90,6 +90,15 @@ if [ ! "$MANUAL" = true ]; then
         JAILLIST=$($SUDO "$FBIN" status |grep "Jail list" | sed 's/`- Jail list://g' | sed 's/ //g')
 fi
 
+# check for running service
+ps -aux | grep "/usr/bin/fail2ban-server" | grep -v grep > /dev/null 2>&1
+if [[ "$?" == "0" ]]; then
+    echo "OK: fail2ban running"
+else
+    echo "CRIT: fail2ban NOT running"
+    exit 2
+fi
+
 # Parse jaillist
 IFS=',' read -ra JAILS <<< "$JAILLIST"
 for JAIL in "${JAILS[@]}"; do
@@ -140,7 +149,7 @@ OUTPUT=$(echo -e "$OUTPUT\\nTotal banned: "$TOTALBANS" IPs|banned_IP=${TOTALBANS
 if [ "$TOTALBANS" -ge ${WARN} ] && [ "$TOTALBANS" -lt ${CRIT} ]; then
         echo "WARNING:$OUTPUT"
         exit 1
-elif [ "$TOTALBANS" -ge ${WARN} ];then
+elif [ "$TOTALBANS" -ge ${CRIT} ];then
         echo "CRITICAL:$OUTPUT"
         exit 2
 else
