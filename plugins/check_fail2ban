@@ -6,7 +6,10 @@
 #                                                               #
 # Displays information per jail                                 #
 # Performance data for total blocked IPs                        #
-# Shows which IP is banned until when                           #
+# Shows which IP is banned until when                           # 
+# ------------------------------------------------------------- #
+# Changelog:                                                    #
+# 020820 Version 1.01 - adapted to new fail2ban-client version  #
 #################################################################
 
 # Helper message
@@ -45,8 +48,6 @@ fi
 VISUDO=$($SUDO -l -U nagios)
 if echo "$VISUDO" | grep -q "(root) NOPASSWD: /usr/bin/fail2ban-client status$" &&
    echo "$VISUDO" | grep -q "(root) NOPASSWD: /usr/bin/fail2ban-client status \*$" &&
-   echo "$VISUDO" | grep -q "(root) NOPASSWD: /usr/bin/fail2ban-client get \* banip$" &&
-   echo "$VISUDO" | grep -q "(root) NOPASSWD: /usr/bin/fail2ban-client get \* banip --with-time$" &&
    echo "$VISUDO" | grep -q "(root) NOPASSWD: /usr/bin/fail2ban-client get \* bantime$"; then
                 :
 else
@@ -103,18 +104,15 @@ fi
 IFS=',' read -ra JAILS <<< "$JAILLIST"
 for JAIL in "${JAILS[@]}"; do
 
-        if $SUDO "$FBIN" get $JAIL banip | grep -q "does not exist"; then
+        if $SUDO "$FBIN" status $JAIL | grep -q "does not exist"; then
                 print_error "Jail \""$JAIL"\" not found"
         fi
         if [ "$TIME" = true ]; then
-                BANNED_IPS=$($SUDO "$FBIN" get $JAIL banip --with-time| sed 's/ .*= / banned till /g')
+                # Time is currently not supported
+                #BANNED_IPS=$($SUDO "$FBIN" get $JAIL banip --with-time| sed 's/ .*= / banned till /g')
+                BANNED_IPS=$($SUDO "$FBIN" status $JAIL | grep "Banned IP list:" | sed 's/^.*Banned IP list://g')
         else
-                BANNED_IPS=$($SUDO "$FBIN" get $JAIL banip | sed 's/ /, /g')
-        fi
-        if [ -z "$BANNED_IPS" ]; then
-                BANNED_IPS="None"
-        else
-                BANNED_IPS=$(echo $BANNED_IPS | sed 's/$/, /g')
+                BANNED_IPS=$($SUDO "$FBIN" status $JAIL | grep "Banned IP list:" | sed 's/^.*Banned IP list://g')
         fi
 
         # Get Amount of bans
