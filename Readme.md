@@ -11,8 +11,6 @@ This plugin requires fail2ban and sudo installed. Also several commands must be 
         # Needed for check_fail2ban
         nagios  ALL=NOPASSWD: /usr/bin/fail2ban-client status
         nagios  ALL=NOPASSWD: /usr/bin/fail2ban-client status *
-        nagios  ALL=NOPASSWD: /usr/bin/fail2ban-client get * banip
-        nagios  ALL=NOPASSWD: /usr/bin/fail2ban-client get * banip --with-time
         nagios  ALL=NOPASSWD: /usr/bin/fail2ban-client get * bantime
 ### Usage    
             ./check_fail2ban -h Display this message
