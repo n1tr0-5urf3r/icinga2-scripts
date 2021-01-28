@@ -92,7 +92,7 @@ if [ ! "$MANUAL" = true ]; then
 fi
 
 # check for running service
-ps -aux | grep "/usr/bin/fail2ban-server" | grep -v grep > /dev/null 2>&1
+COLUMNS="" ps -aux | grep "/usr/bin/fail2ban-server" | grep -v grep > /dev/null 2>&1
 if [[ "$?" == "0" ]]; then
     echo "OK: fail2ban running"
 else
