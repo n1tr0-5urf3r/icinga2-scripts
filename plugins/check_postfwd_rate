@@ -53,11 +53,15 @@ if [ -z "$POSTFWDBIN" ]; then
 fi
 
 RESULTALL=$(${POSTFWDBIN} --dumpcache)
+if echo "${RESULTALL}" | grep -q "<undef>"; then
+    echo "postfwd cache is empty. This may take some time."
+    exit 0
+fi
+
 OUTPUT=""
 
 for l in "${LIMIT[@]}"
 do
-        echo "Checking limit $l"
         # Get all entries that have a send count equal to the current limit
         RESULT=$(${POSTFWDBIN} --dumpcache | grep "@count    -> '${l}'")
         # Extract the sender's name from it
