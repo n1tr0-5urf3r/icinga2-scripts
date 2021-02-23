@@ -2,8 +2,10 @@
 Simply copy the .ini files to your graphiteweb template folder, i.e. ```/usr/share/icingaweb2/modules/graphite/templates/```. 
 Add ``vars.check_command = "strom"`` to the service definition because of obscured check_nrpe commands.
 Replace ``strom`` by the required value of template.
-## check_connections.sh
-This check needs to be redone
+## check_postfwd_rate
+This plugin checks for senders that exceeded a sending limit. A valid postfwd installation and configuration is required. Simply invoke it with the rate limits that should be verified:
+
+        ./check_postfwd_rate -l 500,1000
 ## check_fail2ban
 ### Installation
 This plugin requires fail2ban and sudo installed. Also several commands must be runnable by nagios user with sudo, so add the following to visudo:
@@ -41,3 +43,5 @@ Tested and works with EnBW Stromzähler, Software Version WNGW000702
 ## check_uptime.sh
 ### Usage
 ```/usr/lib/nagios/plugins/check_uptime```
+## check_connections.sh
+This check needs to be redone

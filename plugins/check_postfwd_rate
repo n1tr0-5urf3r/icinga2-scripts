@@ -1,0 +1,87 @@
+#!/bin/bash
+#################################################################
+# Written by Fabian Ihle, fabi@ihlecloud.de                     #
+# Created: 23.02.2021                                           #
+# github: https://github.com/n1tr0-5urf3r/icinga2-scripts       #
+#                                                               #
+# This plugin checks if any sender has exceeded a rate limit    #
+# ------------------------------------------------------------- #
+# Changelog:                                                    #
+# 230221 Version 1.0 - Initial release                          #
+#################################################################
+
+
+POSTFWDBIN=$(command -v postfwd)
+LIMIT=(500)
+
+print_help() {
+        echo "
+                Usage:
+                        ./check_postfwd_rate    -h Display this message
+                                                -l <limits> A comma separated list of limits that should be checked, defaults to 500
+                Example:
+                        ./check_postfwd_rate    -l 500,1000,2000
+                "
+}
+
+print_error() {
+        echo -e "Error: $1\\n"
+        exit 3
+}
+
+
+while test -n "$1"; do
+        case "$1" in
+                -l)
+                        IFS=',' read -ra LIMIT <<< "$2"
+                        shift
+                        ;;
+                -h)
+                        print_help
+                        exit 3
+                        ;;
+                *)
+                        print_help
+                        print_error "Unknown argument: $1"
+                        ;;
+        esac
+        shift
+done
+
+if [ -z "$POSTFWDBIN" ]; then
+        print_error "postfwd binary not found"
+fi
+
+RESULTALL=$(${POSTFWDBIN} --dumpcache)
+OUTPUT=""
+
+for l in "${LIMIT[@]}"
+do
+        echo "Checking limit $l"
+        # Get all entries that have a send count equal to the current limit
+        RESULT=$(${POSTFWDBIN} --dumpcache | grep "@count    -> '${l}'")
+        # Extract the sender's name from it
+        NAME=$(echo ${RESULT} | grep -oP "sasl_username=.*? "| sed 's/sasl_username=//g')
+        for n in ${NAME};
+        do
+                # MAXCOUNTER set for this sender, verify if he reached the limit
+                MAX=$(echo ${RESULTALL} | grep -Eo "${n} -> (.)+ -> @maxcount -> '[0-9]+" | sed "s/.*'//")
+
+                if [ -z "${MAX}" ]; then
+                        print_error "Retrieving limit verification failed. Please contact the author"
+                fi
+
+                if [ ${MAX} -eq ${l} ]; then
+                        OUTPUT="${OUTPUT}\n${n} exceeded the sending limit of ${l}!\\n"
+                fi
+        done
+done
+
+if [ -z "${OUTPUT}" ]; then
+        echo "All good! No rate limits exceeded."
+        exit 0
+else
+        echo "CRITICAL: Rate limits exceeded:"
+        echo -e ${OUTPUT}
+        exit 2
+fi
