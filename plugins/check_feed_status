@@ -1,0 +1,52 @@
+#!/bin/bash
+#################################################################
+# Written by Fabian Ihle, fabi@ihlecloud.de                     #
+# Created: 23.03.2021                                           #
+# github: https://github.com/n1tr0-5urf3r/icinga2-scripts       #
+#                                                               #
+# This plugin checks the feed status of openVAS feeds           #
+# ------------------------------------------------------------- #
+# Changelog:                                                    #
+# 230321 Version 1.0 - Initial release                          #
+#################################################################
+NOW=$(date +%s)
+FEEDS=(CERT SCAP GVMD_DATA)
+EXIT=0
+
+# Adapt to paths
+NVTBIN="/opt/gvm/bin/greenbone-nvt-sync"
+FEEDBIN="/opt/gvm/sbin/greenbone-feed-sync"
+GVMUSER=gvm
+
+# 10 days in epoch
+DAYS=864000
+
+check_timestamp() {
+        STATUS_EPOCH=$(date -d"${1:0:8}" +%s)
+        DIFF=$(($NOW - $STATUS_EPOCH))
+}
+
+check_valid() {
+        if [ ${1} -gt ${DAYS} ]; then
+                if [ "${2}" == "NVT" ]; then
+                        echo -e "${2} is older than 10 days! Run ${NVTBIN} --type ${2} as user ${GVMUSER}.\n"
+                else
+                        echo -e "${2} is older than 10 days! Run ${FEEDBIN} --type ${2} as user ${GVMUSER}.\n"
+                fi
+                EXIT=1
+        else
+                echo -e "${2} is up to date.\n"
+        fi
+}
+
+for f in "${FEEDS[@]}"; do
+        STATUS=$(sudo -u ${GVMUSER} ${FEEDBIN} --feedversion --type $f)
+        check_timestamp ${STATUS}
+        check_valid ${DIFF} ${f}
+done
+
+# Check NVT Feed
+STATUS=$(sudo -u ${GVMUSER} ${NVTBIN} --feedversion)
+check_timestamp ${STATUS}
+check_valid ${DIFF} "NVT"
+exit ${EXIT}

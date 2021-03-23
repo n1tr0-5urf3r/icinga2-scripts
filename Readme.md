@@ -2,6 +2,17 @@
 Simply copy the .ini files to your graphiteweb template folder, i.e. ```/usr/share/icingaweb2/modules/graphite/templates/```. 
 Add ``vars.check_command = "strom"`` to the service definition because of obscured check_nrpe commands.
 Replace ``strom`` by the required value of template.
+## check_feed_status
+This plugin checks if Greenbone OpenVAS feeds are still up to date. If they are older than 10 days, a warning is displayed.
+### Installation
+Following entries in visudo are required:
+
+        nagios ALL=(gvm:gvm) NOPASSWD: /opt/gvm/sbin/greenbone-feed-sync --feedversion --type *
+        nagios ALL=(gvm:gvm) NOPASSWD: /opt/gvm/bin/greenbone-nvt-sync --feedversion
+
+Where `gvm` is the user openVAS runs as. Adapt paths accordingly
+### Usage    
+Simply invoke with `./check_feed_status`
 ## check_postfwd_rate
 This plugin checks for senders that exceeded a sending limit. A valid postfwd installation and configuration is required. Simply invoke it with the rate limits that should be verified:
 
