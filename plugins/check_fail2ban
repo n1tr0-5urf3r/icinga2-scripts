@@ -10,6 +10,7 @@
 # ------------------------------------------------------------- #
 # Changelog:                                                    #
 # 020820 Version 1.01 - adapted to new fail2ban-client version  #
+# 181121 Version 1.02 - use variables for binaries everywhere   #
 #################################################################
 
 # Helper message
@@ -36,9 +37,13 @@ print_error() {
 
 # Get binaries
 FBIN=$(command -v fail2ban-client)
+FBINSERVER=$(command -v fail2ban-server)
 SUDO=$(command -v sudo)
 if [ -z "$FBIN" ]; then
         print_error "fail2ban-client not found"
+fi
+if [ -z "$FBINSERVER" ]; then
+        print_error "fail2ban-server not found"
 fi
 if [ -z "$SUDO" ]; then
         print_error "sudo not found. Please install it"
@@ -46,9 +51,9 @@ fi
 
 # Check $SUDO permissions
 VISUDO=$($SUDO -l -U nagios)
-if echo "$VISUDO" | grep -q "(root) NOPASSWD: /usr/bin/fail2ban-client status$" &&
-   echo "$VISUDO" | grep -q "(root) NOPASSWD: /usr/bin/fail2ban-client status \*$" &&
-   echo "$VISUDO" | grep -q "(root) NOPASSWD: /usr/bin/fail2ban-client get \* bantime$"; then
+if echo "$VISUDO" | grep -q "(root) NOPASSWD: ${FBIN} status$" &&
+   echo "$VISUDO" | grep -q "(root) NOPASSWD: ${FBIN} status \*$" &&
+   echo "$VISUDO" | grep -q "(root) NOPASSWD: ${FBIN} get \* bantime$"; then
                 :
 else
                 print_error "Not all sudo permissions available! Please refer to documentation"
@@ -88,11 +93,11 @@ done
 
 # Get List of Jails
 if [ ! "$MANUAL" = true ]; then
-        JAILLIST=$($SUDO "$FBIN" status |grep "Jail list" | sed 's/`- Jail list://g' | sed 's/ //g')
+        JAILLIST=$(${SUDO} "${FBIN}" status |grep "Jail list" | sed 's/`- Jail list://g' | sed 's/ //g')
 fi
 
 # check for running service
-COLUMNS="" ps -aux | grep "/usr/bin/fail2ban-server" | grep -v grep > /dev/null 2>&1
+COLUMNS="" ps -aux | grep "${FBINSERVER}" | grep -v grep > /dev/null 2>&1
 if [[ "$?" == "0" ]]; then
     echo "OK: fail2ban running"
 else
@@ -117,7 +122,7 @@ for JAIL in "${JAILS[@]}"; do
 
         # Get Amount of bans
         BANS=0
-        BANS=$($SUDO fail2ban-client status $JAIL | grep -o "Currently banned:.*" | sed 's/Currently banned://g')
+        BANS=$($SUDO ${FBIN} status $JAIL | grep -o "Currently banned:.*" | sed 's/Currently banned://g')
         TOTALBANS=$((TOTALBANS+BANS))
 
         # Get Bantime for jail
