@@ -8,6 +8,7 @@
 # ------------------------------------------------------------- #
 # Changelog:                                                    #
 # 230321 Version 1.0 - Initial release                          #
+# 160922 Version 1.1 - Shell check conformity                   #
 #################################################################
 NOW=$(date +%s)
 FEEDS=(CERT SCAP GVMD_DATA)
@@ -23,11 +24,11 @@ DAYS=864000
 
 check_timestamp() {
         STATUS_EPOCH=$(date -d"${1:0:8}" +%s)
-        DIFF=$(($NOW - $STATUS_EPOCH))
+        DIFF=$((NOW - STATUS_EPOCH))
 }
 
 check_valid() {
-        if [ ${1} -gt ${DAYS} ]; then
+        if [ "${1}" -gt "${DAYS}" ]; then
                 if [ "${2}" == "NVT" ]; then
                         echo -e "${2} is older than 10 days! Run ${NVTBIN} --type ${2} as user ${GVMUSER}.\n"
                 else
@@ -40,13 +41,13 @@ check_valid() {
 }
 
 for f in "${FEEDS[@]}"; do
-        STATUS=$(sudo -u ${GVMUSER} ${FEEDBIN} --feedversion --type $f)
-        check_timestamp ${STATUS}
-        check_valid ${DIFF} ${f}
+        STATUS=$(sudo -u ${GVMUSER} ${FEEDBIN} --feedversion --type "$f")
+        check_timestamp "${STATUS}"
+        check_valid "${DIFF}" "${f}"
 done
 
 # Check NVT Feed
 STATUS=$(sudo -u ${GVMUSER} ${NVTBIN} --feedversion)
-check_timestamp ${STATUS}
-check_valid ${DIFF} "NVT"
-exit ${EXIT}
+check_timestamp "${STATUS}"
+check_valid "${DIFF}" "NVT"
+exit "${EXIT}"

@@ -8,6 +8,7 @@
 # ------------------------------------------------------------- #
 # Changelog:                                                    #
 # 230221 Version 1.0 - Initial release                          #
+# 160922 Version 1.1 - Shell check conformity                   #
 #################################################################
 
 
@@ -65,17 +66,17 @@ do
         # Get all entries that have a send count equal to the current limit
         RESULT=$(${POSTFWDBIN} --dumpcache | grep "@count    -> '${l}'")
         # Extract the sender's name from it
-        NAME=$(echo ${RESULT} | grep -oP "sasl_username=.*? "| sed 's/sasl_username=//g')
+        NAME=$(echo "${RESULT}" | grep -oP "sasl_username=.*? "| sed 's/sasl_username=//g')
         for n in ${NAME};
         do
                 # MAXCOUNTER set for this sender, verify if he reached the limit
-                MAX=$(echo ${RESULTALL} | grep -Eo "${n} -> (.)+ -> @maxcount -> '[0-9]+" | sed "s/.*'//")
+                MAX=$(echo "${RESULTALL}" | grep -Eo "${n} -> (.)+ -> @maxcount -> '[0-9]+" | sed "s/.*'//")
 
                 if [ -z "${MAX}" ]; then
                         print_error "Retrieving limit verification failed. Please contact the author"
                 fi
 
-                if [ ${MAX} -eq ${l} ]; then
+                if [ "${MAX}" -eq "${l}" ]; then
                         OUTPUT="${OUTPUT}\n${n} exceeded the sending limit of ${l}!\\n"
                 fi
         done
@@ -86,6 +87,6 @@ if [ -z "${OUTPUT}" ]; then
         exit 0
 else
         echo "CRITICAL: Rate limits exceeded:"
-        echo -e ${OUTPUT}
+        echo -e "${OUTPUT}"
         exit 2
 fi

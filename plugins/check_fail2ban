@@ -11,6 +11,7 @@
 # Changelog:                                                    #
 # 020820 Version 1.01 - adapted to new fail2ban-client version  #
 # 181121 Version 1.02 - use variables for binaries everywhere   #
+# 160922 Version 1.03 - Shell check conformity                  #
 #################################################################
 
 # Helper message
@@ -109,27 +110,27 @@ fi
 IFS=',' read -ra JAILS <<< "$JAILLIST"
 for JAIL in "${JAILS[@]}"; do
 
-        if $SUDO "$FBIN" status $JAIL | grep -q "does not exist"; then
-                print_error "Jail \""$JAIL"\" not found"
+        if $SUDO "$FBIN" status "$JAIL" | grep -q "does not exist"; then
+                print_error "Jail \"$JAIL\" not found"
         fi
         if [ "$TIME" = true ]; then
                 # Time is currently not supported
                 #BANNED_IPS=$($SUDO "$FBIN" get $JAIL banip --with-time| sed 's/ .*= / banned till /g')
-                BANNED_IPS=$($SUDO "$FBIN" status $JAIL | grep "Banned IP list:" | sed 's/^.*Banned IP list://g')
+                BANNED_IPS=$($SUDO "$FBIN" status "$JAIL" | grep "Banned IP list:" | sed 's/^.*Banned IP list://g')
         else
-                BANNED_IPS=$($SUDO "$FBIN" status $JAIL | grep "Banned IP list:" | sed 's/^.*Banned IP list://g')
+                BANNED_IPS=$($SUDO "$FBIN" status "$JAIL" | grep "Banned IP list:" | sed 's/^.*Banned IP list://g')
         fi
 
         # Get Amount of bans
         BANS=0
-        BANS=$($SUDO ${FBIN} status $JAIL | grep -o "Currently banned:.*" | sed 's/Currently banned://g')
+        BANS=$($SUDO "${FBIN}" status "$JAIL" | grep -o "Currently banned:.*" | sed 's/Currently banned://g')
         TOTALBANS=$((TOTALBANS+BANS))
 
         # Get Bantime for jail
-        BANTIME=$($SUDO "$FBIN" get $JAIL bantime)
+        BANTIME=$($SUDO "$FBIN" get "$JAIL" bantime)
 
         # Assemble Output
-        OUTPUT=$(echo "$OUTPUT"\\nJail: $JAIL\\nBan Time: $BANTIME\\nCurrently Banned: $BANS\\nBanned IPs: $BANNED_IPS\\n)
+        OUTPUT="$OUTPUT\\nJail: $JAIL\\nBan Time: $BANTIME\\nCurrently Banned: $BANS\\nBanned IPs: $BANNED_IPS\\n"
 done
 
 # Set default values
@@ -146,7 +147,7 @@ if [ $WARN -ge $CRIT ]; then
 fi
 
 # Append additional info
-OUTPUT=$(echo -e "$OUTPUT\\nTotal banned: "$TOTALBANS" IPs|banned_IP=${TOTALBANS};${WARN};${CRIT}")
+OUTPUT=$(echo -e "$OUTPUT\\nTotal banned: $TOTALBANS IPs|banned_IP=${TOTALBANS};${WARN};${CRIT}")
 
 # States
 if [ "$TOTALBANS" -ge ${WARN} ] && [ "$TOTALBANS" -lt ${CRIT} ]; then
