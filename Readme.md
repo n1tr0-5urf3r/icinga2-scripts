@@ -14,9 +14,16 @@ Where `gvm` is the user openVAS runs as. Adapt paths accordingly
 ### Usage    
 Simply invoke with `./check_feed_status`
 ## check_postfwd_rate
-This plugin checks for senders that exceeded a sending limit. A valid postfwd installation and configuration is required. Simply invoke it with the rate limits that should be verified:
+This plugin checks for senders that exceeded a sending limit. A valid postfwd installation and configuration is required. The configured rate limits are automatically checked against.
 
-        ./check_postfwd_rate -l 500,1000
+### Installation
+To avoid permission issues when running this check via nrpe
+configure a cronjob like following to periodically cache data:
+
+```sh
+*/3 * * * * /usr/sbin/postfwd --dumpcache > /var/opt/postfwd_dumpcache.txt
+```
+
 ## check_fail2ban
 ### Installation
 This plugin requires fail2ban and sudo installed. Also several commands must be runnable by nagios user with sudo, so add the following to visudo:
@@ -38,9 +45,6 @@ This plugin requires fail2ban and sudo installed. Also several commands must be 
 
 ### Example Output
 ![Fail2Ban](img/fail2ban_new.png "Fail2Ban")
-## check_fail2ban_old.sh
-This plugin is deprecated, please use check_fail2ban.sh
-Forked from [Nagios Exchange](https://exchange.nagios.org/index.php?option=com_mtree&task=viewlink&link_id=4349&Itemid=74)
 ### Usage
 /usr/lib/nagios/plugins/check_fail2ban.sh -l \<logfile\>  -p \<jail.conf\> -w 10 -c 20 \<-v\>
 ### Example output

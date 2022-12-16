@@ -8,20 +8,28 @@
 # ------------------------------------------------------------- #
 # Changelog:                                                    #
 # 230221 Version 1.0 - Initial release                          #
-# 160922 Version 1.1 - Shell check conformity                   #
+# 161222 Version 1.1 - Dumpfile and dynamic limits              #
+#                                                               #
+#                                                               #
+#                                                               #
+#  INSTALLATION                                                 #
+#  To avoid permission issues when running this check via nrpe  #
+#  configure a cronjob like following to periodically cache     #
+#  data                                                         #
+# */3 * * * * /usr/sbin/postfwd --dumpcache > /var/opt/postfwd_dumpcache.txt
+#                                                               #
+#                                                               # 
 #################################################################
 
 
+
 POSTFWDBIN=$(command -v postfwd)
-LIMIT=(500)
+DUMPFILE=/var/opt/postfwd_dumpcache.txt
 
 print_help() {
         echo "
                 Usage:
                         ./check_postfwd_rate    -h Display this message
-                                                -l <limits> A comma separated list of limits that should be checked, defaults to 500
-                Example:
-                        ./check_postfwd_rate    -l 500,1000,2000
                 "
 }
 
@@ -33,10 +41,6 @@ print_error() {
 
 while test -n "$1"; do
         case "$1" in
-                -l)
-                        IFS=',' read -ra LIMIT <<< "$2"
-                        shift
-                        ;;
                 -h)
                         print_help
                         exit 3
@@ -53,18 +57,27 @@ if [ -z "$POSTFWDBIN" ]; then
         print_error "postfwd binary not found"
 fi
 
-RESULTALL=$(${POSTFWDBIN} --dumpcache)
-if echo "${RESULTALL}" | grep -q "<undef>"; then
-    echo "postfwd cache is empty. This may take some time."
-    exit 0
+#RESULTALL=$(sudo -u nagios sudo ${POSTFWDBIN} --dumpcache)
+RESULTALL=$(cat "$DUMPFILE")
+
+if [[ "${RESULTALL}" == *"<undef>"* ]]; then
+        print_error "postfwd cache is empty. This might take some time."
+fi
+
+if [ -z "${RESULTALL}" ]; then
+        print_error "postfwd cache is not accessible!"
 fi
 
 OUTPUT=""
 
+# Get all configured limits and transform them into an array
+LIMIT=$(echo "$RESULTALL" | grep -o "@list.*" | sort -u | grep -oE "[0-9]{1,}_[0-9]{1,}" | sed 's/_.*//g')
+LIMIT=($LIMIT)
+
 for l in "${LIMIT[@]}"
 do
         # Get all entries that have a send count equal to the current limit
-        RESULT=$(${POSTFWDBIN} --dumpcache | grep "@count    -> '${l}'")
+        RESULT=$(echo "$RESULTALL" | grep "@count    -> '${l}'")
         # Extract the sender's name from it
         NAME=$(echo "${RESULT}" | grep -oP "sasl_username=.*? "| sed 's/sasl_username=//g')
         for n in ${NAME};
@@ -73,7 +86,7 @@ do
                 MAX=$(echo "${RESULTALL}" | grep -Eo "${n} -> (.)+ -> @maxcount -> '[0-9]+" | sed "s/.*'//")
 
                 if [ -z "${MAX}" ]; then
-                        print_error "Retrieving limit verification failed. Please contact the author"
+                        print_error "Retrieving limit verification failed. Please contact the author."
                 fi
 
                 if [ "${MAX}" -eq "${l}" ]; then
