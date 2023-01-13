@@ -12,6 +12,7 @@
 # 020820 Version 1.01 - adapted to new fail2ban-client version  #
 # 181121 Version 1.02 - use variables for binaries everywhere   #
 # 160922 Version 1.03 - Shell check conformity                  #
+# 130123 Version 1.04 - Some more output on erroneous permission#
 #################################################################
 
 # Helper message
@@ -57,7 +58,9 @@ if echo "$VISUDO" | grep -q "(root) NOPASSWD: ${FBIN} status$" &&
    echo "$VISUDO" | grep -q "(root) NOPASSWD: ${FBIN} get \* bantime$"; then
                 :
 else
-                print_error "Not all sudo permissions available! Please refer to documentation"
+                echo "Not all sudo permissions available! Please refer to documentation."
+                echo "If you have set them up, make sure that the command 'sudo -u nagios /usr/lib/nagios/plugins/check_fail2ban -t -w 1 -c 2' correctly displays your jails."
+                print_error "If they do not show up, try repairing sudo permissions with the command 'chown root:root /usr/bin/sudo && chmod 4755 /usr/bin/sudo'"
 fi
 
 
