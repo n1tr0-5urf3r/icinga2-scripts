@@ -100,3 +100,10 @@ Replace ``strom`` by the required value of template.
 
 ## check_connections.sh
 This check is deprecated and needs to be redone.
+
+---
+
+## Donation
+If you like my work a donation is very welcome :) 
+
+[![](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/donate/?hosted_button_id=KXMYX49C6MLLN)
